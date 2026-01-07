@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>相機測試</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f2;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        video {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+            margin-top: 15px;
+            /* iOS Safari 需要 playsinline 才能在網頁內播放而非全螢幕 */
+        }
+        button {
+            background-color: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:active {
+            background-color: #0056b3;
+        }
+        .input-group {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        p {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h3>方法 1: 即時相機串流</h3>
+    <p>適用於掃描或即時預覽 (需要 HTTPS)</p>
+    <button id="startCamera">啟動相機</button>
+    <!-- playsinline 是 iOS Safari 的關鍵屬性 -->
+    <video id="video" autoplay playsinline muted></video>
+
+    <div class="input-group">
+        <h3>方法 1: 從即時串流拍照</h3>
+        <button id="snap">點擊拍照</button>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div id="result">
+            <p>照片結果：</p>
+            <img id="photo" alt="尚未拍照" style="width: 100%; border-radius: 8px; border: 1px solid #ddd;">
+            <a id="download" style="display:none; color: #007AFF; text-decoration: none; margin-top: 10px;">下載此照片</a>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <h3>方法 2: 直接拍照上傳</h3>
+        <p>手機會直接彈出相機</p>
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
+        <div id="fileResult"></div>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const startBtn = document.getElementById('startCamera');
+    const snapBtn = document.getElementById('snap');
+    const canvas = document.getElementById('canvas');
+    const photo = document.getElementById('photo');
+    const downloadLink = document.getElementById('download');
+    const fileInput = document.getElementById('fileInput');
+
+    // --- 方法 1: 即時串流拍照 ---
+    startBtn.addEventListener('click', async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false
+            });
+            video.srcObject = stream;
+            video.play();
+            startBtn.textContent = '相機運作中';
+            startBtn.disabled = true;
+        } catch (err) {
+            alert("無法啟動相機，請確認使用 HTTPS 或 localhost");
+        }
+    });
+
+    snapBtn.addEventListener('click', () => {
+        const context = canvas.getContext('2d');
+        // 設定 canvas 大小與影片一致
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        // 將 video 畫面畫在 canvas 上
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // 轉換為 Base64 圖片格式
+        const data = canvas.toDataURL('image/png');
+        photo.setAttribute('src', data);
+
+        // 製作下載連結 (檔案結果)
+        downloadLink.href = data;
+        downloadLink.download = "snapshot.png";
+        downloadLink.style.display = "block";
+        downloadLink.textContent = "點此下載拍照結果 (PNG)";
+
+        console.log("取得圖片檔案 (Base64):", data);
+    });
+
+    // --- 方法 2: 檔案選取器拍照 ---
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = document.createElement('img');
+                img.src = event.target.result;
+                img.style.width = "100%";
+                img.style.borderRadius = "8px";
+
+                const resDiv = document.getElementById('fileResult');
+                resDiv.innerHTML = '<p>選取/拍照結果：</p>';
+                resDiv.appendChild(img);
+
+                console.log("取得檔案物件:", file);
+                console.log("檔案名稱:", file.name);
+                console.log("檔案大小:", file.size, "bytes");
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+
+</body>
+</html>
